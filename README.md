@@ -7,60 +7,115 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
-## About Laravel
+🚀 Notification Queue System
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Sistem ini menyediakan REST API untuk membuat job pengiriman notifikasi (email/SMS) dan worker process yang memproses job secara paralel dengan mekanisme retry, exponential backoff, jitter, idempotency, dan anti–double-processing.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+✅ Fitur Utama
+| Fitur                       | Penjelasan                                                |
+| --------------------------- | --------------------------------------------------------- |
+| **POST /api/notifications** | Menciptakan job pengiriman notifikasi secara asynchronous |
+| **Idempotency Key**         | Request duplikat tidak membuat job baru                   |
+| **Worker**                  | Memproses job dengan status `PENDING` / `RETRY`           |
+| **Retry otomatis**          | Menggunakan exponential backoff + jitter                  |
+| **Anti double-processing**  | Aman untuk banyak worker paralel (concurrency-safe)       |
+| **Queue Stats**             | Endpoint untuk melihat statistik job                      |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+📌 1. Cara Menjalankan Aplikasi
+✅ A. Install Dependencies
+```bash
+composer install
+```
+Silakan sesuaikan .env anda dengan .env.example
 
-## Learning Laravel
+✅ B. Jalankan migrasi database
+```bash
+php artisan migrate
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Secara default akan berjalan pada: http://localhost:8000/
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+✅ C. Menjalankan REST API
+```bash
+php artisan serve
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 2000 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Anda dapat melihat contoh Request API melalui collection Postman berikut:
 
-## Laravel Sponsors
+https://www.postman.com/warped-shuttle-585736/workspace/cipta-satria/collection/16178191-06262d75-7913-42e7-8f8e-3d9491cee8b5?action=share&creator=16178191
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+📌 2. Keputusan Teknis Utama
+✅ Mengapa tidak memakai Redis Queue / Laravel Horizon?
 
-### Premium Partners
+Untuk memenuhi requirement challenge, seluruh mekanisme dibangun manual menggunakan:
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-- **[Lendio](https://lendio.com)**
+1. Tabel notification_jobs
 
-## Contributing
+2. Worker custom
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+3. Locking / concurrency-safe
 
-## Code of Conduct
+4. Retry logic dan backoff
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Hal ini menunjukkan pemahaman sistem queue internal tanpa bergantung pada library queue Laravel.
 
-## Security Vulnerabilities
+✅ Mengapa PostgreSQL?
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Karena PostgreSQL mendukung:
+```sql
+FOR UPDATE SKIP LOCKED
+```
+Perintah ini memungkinkan banyak worker paralel menarik job tanpa race condition.
 
-## License
+MySQL/MariaDB hanya mendukung fitur ini pada versi tertentu dan sering bermasalah.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+📌 3. Strategi Retry, Backoff, dan Jitter
+
+Sistem menerapkan exponential backoff:
+
+```ini
+next_delay_seconds = (2 ^ attempts) + random_jitter
+```
+
+Tujuannya:
+
+✅ Menghindari spam retry sekaligus
+
+✅ Mengurangi efek “retry storm" jika banyak job gagal bersamaan
+
+✅ Mendistribusikan retry pada waktu acak
+
+Jika attempts >= max_attempts, job berubah menjadi FAILED
+
+📌 4. Mekanisme Anti Double-Processing
+
+Sistem harus aman dengan banyak worker paralel.
+
+✅ Solusinya:
+```sql
+SELECT ... FOR UPDATE SKIP LOCKED
+```
+
+Ketika worker menarik job:
+
+Database mengunci baris (row-level lock)
+
+Job hanya bisa diklaim oleh satu worker
+
+Worker lain akan melewati row yang terkunci (SKIP LOCKED)
+
+Status langsung diubah ke PROCESSING
+
+✅ Tidak ada dua worker yang memproses job sama
+✅ Jika worker mati tiba-tiba → job tetap aman dan bisa diproses ulang saat next_run_at tercapai
+✅ Full concurrency-safe tanpa Redis
+
+❓ Bantuan / Kontak
+
+Jika terdapat kendala atau pertanyaan lebih lanjut, silakan hubungi:
+
+📧 Email: ecepentis@gmail.com
+📱 WhatsApp: 0896-5842-0438
+
+Regards,
+Ecep Achmad Sutisna
