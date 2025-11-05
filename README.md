@@ -60,6 +60,7 @@ php artisan queue:notification --limit=10 --sleep=2
 ```
 
 📌 2. Keputusan Teknis Utama
+
 ✅ Mengapa tidak memakai Redis Queue / Laravel Horizon?
 
 Untuk memenuhi requirement challenge, seluruh mekanisme dibangun manual menggunakan:
@@ -135,4 +136,5 @@ Jika terdapat kendala atau pertanyaan lebih lanjut, silakan hubungi:
 📱 WhatsApp: 0896-5842-0438
 
 Regards,
+
 Ecep Achmad Sutisna
