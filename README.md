@@ -107,7 +107,9 @@ Worker lain akan melewati row yang terkunci (SKIP LOCKED)
 Status langsung diubah ke PROCESSING
 
 ✅ Tidak ada dua worker yang memproses job sama
+
 ✅ Jika worker mati tiba-tiba → job tetap aman dan bisa diproses ulang saat next_run_at tercapai
+
 ✅ Full concurrency-safe tanpa Redis
 
 ❓ Bantuan / Kontak
