@@ -22,6 +22,7 @@ Sistem ini menyediakan REST API untuk membuat job pengiriman notifikasi (email/S
 | **Queue Stats**             | Endpoint untuk melihat statistik job                      |
 
 📌 1. Cara Menjalankan Aplikasi
+
 ✅ A. Install Dependencies
 ```bash
 composer install
@@ -43,6 +44,20 @@ php artisan serve
 Anda dapat melihat contoh Request API melalui collection Postman berikut:
 
 https://www.postman.com/warped-shuttle-585736/workspace/cipta-satria/collection/16178191-06262d75-7913-42e7-8f8e-3d9491cee8b5?action=share&creator=16178191
+
+✅ D. Menjalankan Worker
+
+Silakan buka command prompt anda dan ketik:
+
+```bash
+php artisan queue:notification --limit=<limit of worker> --sleep=<sleep per seconds>
+```
+
+Sebagai contoh limit 10 dengan sleep 2 detik:
+
+```bash
+php artisan queue:notification --limit=10 --sleep=2
+```
 
 📌 2. Keputusan Teknis Utama
 ✅ Mengapa tidak memakai Redis Queue / Laravel Horizon?
